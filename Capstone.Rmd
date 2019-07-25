@@ -1,0 +1,266 @@
+---
+title: "Music Lyric Analysis"
+author: "Frank Bonifazi"
+date: "6/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+#```{r}
+install.packages ("tidyverse")
+install.packages ("tidytext")
+install.packages ("tidyr")
+#```
+
+```{r}
+library('tidyverse')
+library(tidytext)
+library(tidyr)
+```
+# TITLE: Music by the Numbers!
+A data science analysis by Francesco Bonifazi.
+
+This project proposes and seeks to show that song lyrics can be a determing factor of the genre.
+We do not discount the power of harmony, melody, and rhythm to differentiate genre, but, it's not
+common for musicians, educators and the like to classify music by the lyrics to songs.
+
+# GOAL: The goal of this project is to use data science to analyze a library of Popular song lyrics, build/train a model to classify the words that best characterize the song's genre.  Ultimately, I plan to be able to use song lyrics not in the sample DB to test the model. Including ones from major artists and beyond.
+
+#### Action Plan:
+I will use the readily available subset of lyrics from The Million Song library.  My sample size will be 57,000 songs of multiple genres and artists. From this, I will cut it into training and test data starting at .75 training.
+
+To train the prediction, I will need the most likely genre for each song. Unfortunately, this is not provided with the freely available data.  Due to the huge task to select the genre for each of the 57,000 songs, I will focus on the artist for each group of songs using multiple sources wher they categorize music.  I will also list a "sub-genre" in-case this is more effective to use.
+
+# Business Case:
+WHy would anyone or any company care whether lyrics define the song's genre?
+
+Let's look at potential company use. Businesses such at Pandora and Spotify have been analyzing and classifying music (including songs with lyrics) for their customers to provide a "premium" listening experience.  Seems that the common thought is that most listeners don't have a wide range of music they enjoy, so keeping them on the service relies in part to providing recommendations, and even "next-up" of songs.  While these algorhythms are valuable corporate secrets, to my knowledge none have focused on lyrics exclusively.  It would benefit these music service providers to complement their own AI/ML solutions with another one focused on lyrics.  This would offer both comfirmation of music analysis as well as new insights.
+
+Next, let's look at songwriters, their management, and licensing companies such as ASCAP and BMI.
+
+For songwriters, there is a sub-group that are only lyricists, meaning someone else composes the music. Composers look for lyrics to compose to.  Lyricists look for composers who are known for specific genres. Many, haven't worked together before.  Managers often have knowledge of both sides, and will broaker deals that combine their talents.  Giving songwriters and composers the ability look for each other by matching lyrics with music could be a further democratization of the music industry.
+
+Licensing companies deal with both lyrics and songs as legal assets they manage for artists. While this is not the main part of their business, they would benefit from validating the lyric's genre compared to what the artist thinks it is.
+
+When another artist wants to record someone else's song, they had to pay license fees to ASCAP for example. ASCAP has a website that deals with this from a financial aspect, but not from a search and select song aspect.  Having this capability would enhance their service offering to their clients, be a competitive differentiator, and potentially increase profits through "premium" services.
+
+High-Level Summary of Restuls"
+To be written late!!!!
+
+CHUNK TEMPLATE
+```{r}
+
+```
+
+
+
+```{r}
+songdata <- read_csv("songdata.csv")
+```
+There are 4 columns in this dataset
+
+```{r}
+class(songdata)
+```
+Looks like a data frame
+
+Try converting to a tibble
+
+
+```{r}
+songdata_tibble <- as_tibble(songdata)
+class(songdata_tibble)
+```
+
+Looks the same... but, might be different internally?
+
+Count the rows
+```{r}
+songdata_tibble %>%
+count()
+
+```
+
+There are 57,650 rows of data in this dataset
+
+```{r}
+songdata_tibble %>%
+  select(artist) %>%
+  unique()
+```
+
+
+There are 643 artists in this dataset
+
+If I need 30% for test data = 129 artists.
+
+```{r}
+head (songdata_tibble)
+```
+
+How many ABBA song?
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%
+count()
+```
+
+
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%
+unnest_tokens(word, text)
+```
+
+
+Search for no. times "girl" is used
+Use tidy text's unnest function to arrange one word per row.
+
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%
+  group_by(song) %>%
+unnest_tokens(word, text) %>%
+filter(word == "girl") %>%
+  count()
+```
+
+2 ABBA songs have the word "girl" in them...???  Seems low.
+
+Out of 113 ABBA songs... but, it misssed their 1st song "Ahe's My Kind Of Girl" which I checked has "girl" 4 times.
+
+I have a lot to learn about text parsing...
+
+
+Let's get ride of word such as "the", "a" etc. Called "stop_words"
+It seemed to choke on all rows....doing it for ABBA to see results.
+
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%  
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE)
+  
+```
+
+#FB: All words are used at least twice ABBA's songs catelog . No single word is unique to one song.
+
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%  
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) %>%
+  
+  mutate(word = reorder(word,n))  %>%  
+  filter(n > 50) %>%
+   
+  ggplot(aes(word, n)) +
+    geom_col() +
+  xlab("Words in song") +
+coord_flip()
+  
+```
+
+
+#FB: This shows 'girl" is used by ABBA over 50 times!
+
+#FB: I want to cut this song list down to 100 songs (trainin data), and look at the top 20 words.  I will increase this size if I don't find interesting trends.
+
+#FB: I want to use a randon selection since this is an alhpabetical list.
+
+```{r}
+dat=songdata_tibble
+set.seed(123)
+training_split = 0.012 #1% data for train, .25% for test
+smp_size = floor(training_split * nrow(dat))
+train_ind = sample(seq_len(nrow(dat)), size = smp_size)
+
+#test_ind = dat -train_ind]
+
+train_dat = dat[train_ind,]
+test_dat = dat[-train_ind,]
+
+#train_dat
+test_dat
+```
+
+```{r}
+# "Tidy:
+set.seed(123)
+training_split = 0.75 #1% data for train, .25% for test
+train_dat = dat %>% sample_frac(training_split)
+test_dat = dat %>% anti_join(train_dat, by = 'song')
+#train_dat
+test_dat
+
+# Clean up data to remove ID
+train_dat = train_dat %>% select(-link)
+test_dat = test_dat %>% select(-link)
+test_dat
+
+```
+
+# Now scale each set down to 10%
+# Don't need to use a random function again.
+
+```{r}
+max_train_rows = nrow(train_dat)*.001
+train_dat_sm = train_dat[1:max_train_rows,]
+train_dat_sm  # Works!
+
+
+starting_test_row = round(max_train_rows*.8) + 1
+#starting_test_row 
+#nrow(train_dat_sm)
+test_dat_sm = train_dat_sm[starting_test_row:nrow(train_dat_sm),]
+train_dat_sm
+
+```
+
+#FB: Looks like I didn't need to an additional randome selection!
+Talk about variety - just look at the 1st 2 songs!!!!
+But, I have 2 Slayer songs in here....
+
+```{r}
+train_dat_sm
+```
+
+
+Let's take a look at the lyrics in the training data...
+Starting with Slayer:
+
+```{r}
+train_dat_sm %>%
+  filter (artist == "Slayer") %>%  
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) %>%
+mutate(word = reorder(word,n))  %>%  
+  filter(n > 1) %>%
+  ggplot(aes(word, n)) +
+    geom_col() +
+  xlab("Words in Slayer's songs") +
+coord_flip()
+```
+
+#FB: Words including "insane", "evil', "victom", and "satan's" seem to stand out in this band's word's COMMON to all genres?
+
+But 1st - I need a function to pass all artist's songs to and find the most used words.
+
