@@ -16,16 +16,23 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
-#```{r}
+```{r}
 install.packages ("tidyverse")
 install.packages ("tidytext")
 install.packages ("tidyr")
-#```
+install.packages ("wordcloud")
+install.packages("textdata")
+```
 
 ```{r}
 library('tidyverse')
-library(tidytext)
-library(tidyr)
+library('tidytext')
+library('tidyr')
+library('scales')
+library('wordcloud')
+library('reshape2')
+library('textdata')
+data("stop_words")
 ```
 # TITLE: Music by the Numbers!
 A data science analysis by Francesco Bonifazi.
@@ -65,7 +72,7 @@ CHUNK TEMPLATE
 
 
 ```{r}
-songdata <- read_csv("songdata.csv")
+songdata <- read_csv("https://foco-ds-portal-files.s3.amazonaws.com/songdata.csv")
 ```
 There are 4 columns in this dataset
 
@@ -91,7 +98,7 @@ count()
 
 ```
 
-There are 57,650 rows of data in this dataset
+There are 57,650 rows of data in this dataset = each row is a song.
 
 ```{r}
 songdata_tibble %>%
@@ -234,7 +241,7 @@ train_dat_sm
 
 ```
 
-#FB: Looks like I didn't need to an additional randome selection!
+#FB: Looks like I didn't need to an additional random selection!
 Talk about variety - just look at the 1st 2 songs!!!!
 But, I have 2 Slayer songs in here....
 
@@ -247,7 +254,7 @@ Let's take a look at the lyrics in the training data...
 Starting with Slayer:
 
 ```{r}
-train_dat_sm %>%
+train_dat_sm_unnest = train_dat_sm %>%
   filter (artist == "Slayer") %>%  
   unnest_tokens(word, text) %>%
   anti_join(stop_words) %>%
@@ -258,9 +265,29 @@ mutate(word = reorder(word,n))  %>%
     geom_col() +
   xlab("Words in Slayer's songs") +
 coord_flip()
+
 ```
 
 #FB: Words including "insane", "evil', "victom", and "satan's" seem to stand out in this band's word's COMMON to all genres?
 
-But 1st - I need a function to pass all artist's songs to and find the most used words.
+*** - I need a function to pass all artist's songs to and find the most used words.
 
+
+#FB: Let's look at the frequency of words for all the songs in the training_dat using the 
+
+```{r}
+afinn = get_sentiments("afinn")
+bing = get_sentiments("bing")
+loughran = get_sentiments("loughran")
+
+```
+
+```{r}
+sent_dat = train_dat_sm_unnest %>%
+  #rename(original_sentiment = sentiment) %>%
+  left_join(bing, by = 'word') %>%
+  rename(bing = sentiment) %>%
+  left_join(loughran, by = 'word') %>%
+  rename(loughran = sentiment)
+head(sent_dat)
+```
