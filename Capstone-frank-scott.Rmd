@@ -1,0 +1,259 @@
+---
+title: "Music Lyric Analysis"
+author: "Frank Bonifazi"
+date: "6/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## R Markdown
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library('tidyverse')
+library('tidytext')
+library('tidyr')
+library('scales')
+library('wordcloud')
+library('reshape2')
+library('textdata')
+data("stop_words")
+```
+# TITLE: Music by the Numbers!
+A data science analysis by Francesco Bonifazi.
+This project proposes and seeks to show that song lyrics can be a determing factor of the genre.
+We do not discount the power of harmony, melody, and rhythm to differentiate genre, but, it's not
+common for musicians, educators and the like to classify music by the lyrics to songs.
+# GOAL: The goal of this project is to use data science to analyze a library of Popular song lyrics, build/train a model to classify the words that best characterize the song's genre.  Ultimately, I plan to be able to use song lyrics not in the sample DB to test the model. Including ones from major artists and beyond.
+#### Action Plan:
+I will use the readily available subset of lyrics from The Million Song library.  My sample size will be 57,000 songs of multiple genres and artists. From this, I will cut it into training and test data starting at .75 training.
+To train the prediction, I will need the most likely genre for each song. Unfortunately, this is not provided with the freely available data.  Due to the huge task to select the genre for each of the 57,000 songs, I will focus on the artist for each group of songs using multiple sources wher they categorize music.  I will also list a "sub-genre" in-case this is more effective to use.
+# Business Case:
+WHy would anyone or any company care whether lyrics define the song's genre?
+Let's look at potential company use. Businesses such at Pandora and Spotify have been analyzing and classifying music (including songs with lyrics) for their customers to provide a "premium" listening experience.  Seems that the common thought is that most listeners don't have a wide range of music they enjoy, so keeping them on the service relies in part to providing recommendations, and even "next-up" of songs.  While these algorhythms are valuable corporate secrets, to my knowledge none have focused on lyrics exclusively.  It would benefit these music service providers to complement their own AI/ML solutions with another one focused on lyrics.  This would offer both comfirmation of music analysis as well as new insights.
+Next, let's look at songwriters, their management, and licensing companies such as ASCAP and BMI.
+For songwriters, there is a sub-group that are only lyricists, meaning someone else composes the music. Composers look for lyrics to compose to.  Lyricists look for composers who are known for specific genres. Many, haven't worked together before.  Managers often have knowledge of both sides, and will broaker deals that combine their talents.  Giving songwriters and composers the ability look for each other by matching lyrics with music could be a further democratization of the music industry.
+Licensing companies deal with both lyrics and songs as legal assets they manage for artists. While this is not the main part of their business, they would benefit from validating the lyric's genre compared to what the artist thinks it is.
+When another artist wants to record someone else's song, they had to pay license fees to ASCAP for example. ASCAP has a website that deals with this from a financial aspect, but not from a search and select song aspect.  Having this capability would enhance their service offering to their clients, be a competitive differentiator, and potentially increase profits through "premium" services.
+High-Level Summary of Restuls"
+To be written late!!!!
+CHUNK TEMPLATE
+```{r}
+```
+```{r}
+raw_song <- read_csv("https://foco-ds-portal-files.s3.amazonaws.com/songdata.csv")
+raw_genre = read_csv("https://foco-ds-portal-files.s3.amazonaws.com/Artists_Genre_Mapping.csv")
+songdata = raw_song %>% 
+  left_join(raw_genre, by = c('artist' = 'Band'))
+```
+There are 4 columns in this dataset
+```{r}
+class(songdata)
+```
+Looks like a data frame
+Try converting to a tibble
+```{r}
+songdata_tibble <- as_tibble(songdata)
+class(songdata_tibble)
+```
+Looks the same... but, might be different internally?
+Count the rows
+```{r}
+songdata_tibble %>%
+count()
+```
+There are 57,650 rows of data in this dataset = each row is a song.
+```{r}
+songdata_tibble %>%
+  select(artist) %>%
+  unique()
+```
+There are 643 artists in this dataset
+If I need 30% for test data = 129 artists.
+```{r}
+head (songdata_tibble)
+```
+How many ABBA song?
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%
+count()
+```
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%
+unnest_tokens(word, text)
+```
+Search for no. times "girl" is used
+Use tidy text's unnest function to arrange one word per row.
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%
+  group_by(song) %>%
+unnest_tokens(word, text) %>%
+filter(word == "girl") %>%
+  count()
+```
+2 ABBA songs have the word "girl" in them...???  Seems low.
+Out of 113 ABBA songs... but, it misssed their 1st song "Ahe's My Kind Of Girl" which I checked has "girl" 4 times.
+I have a lot to learn about text parsing...
+Let's get ride of word such as "the", "a" etc. Called "stop_words"
+It seemed to choke on all rows....doing it for ABBA to see results.
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%  
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE)
+  
+```
+#FB: All words are used at least twice ABBA's songs catelog . No single word is unique to one song.
+```{r}
+library(ggplot2)
+```
+```{r}
+songdata_tibble %>%
+  filter (artist == "ABBA") %>%  
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) %>%
+  
+  mutate(word = reorder(word,n))  %>%  
+  filter(n > 50) %>%
+   
+  ggplot(aes(word, n)) +
+    geom_col() +
+  xlab("Words in song") +
+coord_flip()
+  
+```
+#FB: This shows 'girl" is used by ABBA over 50 times!
+#FB: I want to cut this song list down to 100 songs (trainin data), and look at the top 20 words.  I will increase this size if I don't find interesting trends.
+#FB: I want to use a randon selection since this is an alhpabetical list.
+```{r}
+# "Tidy:
+set.seed(123)
+training_split = 0.75 #1% data for train, .25% for test
+sampled_fraction = 0.03
+train_dat = songdata_tibble %>% sample_frac(training_split * sampled_fraction)
+test_dat = songdata_tibble %>% anti_join(train_dat, by = 'song')
+#train_dat
+# Clean up data to remove ID
+train_dat = train_dat %>% select(-link)
+test_dat = test_dat %>% select(-link)
+#test_dat
+```
+# Now scale each set down to 10%
+# Don't need to use a random function again.
+#FB: Looks like I didn't need to an additional random selection!
+Talk about variety - just look at the 1st 2 songs!!!!
+But, I have 2 Slayer and 2 Fleetwood Mac songs in here....
+Let's take a look at the lyrics in the training data...
+Starting with Dolly Parton:
+```{r}
+train_dat %>%
+  group_by(artist) %>%
+  count(artist, sort = TRUE)
+train_dat_unnest = train_dat %>%
+  filter (artist == "Dolly Parton") %>%  
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) %>%
+  mutate(word = reorder(word,n)) %>%
+  filter(n > 1)
+train_dat_unnest %>%
+  filter(n > 2) %>%
+  ggplot(aes(word, n)) +
+  geom_col() +
+  xlab("Words in Dolly Parton's songs") +
+  coord_flip()
+```
+#FB: Words including "insane", "evil', "victom", and "satan's" seem to stand out in this band's word's COMMON to all genres?
+*** - I need a function to pass all artist's songs to and find the most used words.
+#FB: Let's look at the frequency of words for all the songs in the training_dat using the 
+```{r}
+afinn = get_sentiments("afinn")
+bing = get_sentiments("bing")
+loughran = get_sentiments("loughran")
+```
+```{r}
+sent_dat = train_dat_unnest %>%
+  left_join(bing, by = 'word') %>% 
+  rename(bing = sentiment) %>%
+  left_join(loughran, by = 'word') %>%
+  rename(loughran = sentiment) %>%
+  left_join(afinn, by = 'word') %>%
+  rename(afinn = value)
+sent_dat
+```
+
+```{r}
+train_dat %>%
+  group_by(Genre, artist) %>%
+  summary(train_dat)
+```
+
+```{r}
+train_dat %>%
+  group_by(Genre, artist) %>%
+  summary(train_dat)
+```
+
+```{r}
+train_dat %>%
+  group_by(Genre, artist) %>%
+  filter(!is.na(Genre)) %>%
+  count(artist, sort = TRUE) %>%
+  ggplot(aes(x = artist, y = n)) +
+  geom_col() +
+  coord_flip() + 
+  facet_wrap(~Genre, scales = 'free')
+```
+Need to make this more readable.  I'll try fewwer artists 1st...
+
+
+
+
+
+
+Today
+Frank Bonifazi 4:11 PM
+Hi Scott... working on my project now.  I'm studying your code changes.  I think I should convert all text to lower case and put an index for each before I attempt a model.  What do you think?
+```{r}
+head(train_dat)
+```
+
+# Remove rows with NAs in Genre
+```{r}
+
+train_dat = train_dat[!is.na(train_dat$Genre), ] 
+train_dat
+```
+
+# Add Index column using simple integers
+```{r}
+train_dat <- tibble::rowid_to_column(train_dat, "ID")
+train_dat
+```
+
+
+
+```{r}
+train_dat %>%
+  group_by(Genre, artist) %>%
+  filter(!is.na(Genre))%>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) %>%
+  mutate(word = reorder(word,n)) %>%
+  filter(n > 1) %>%
+#head(train_dat)  Above code runs but is WRONG!!!
+
+  ggplot(aes(x = artist, y = n)) +
+  geom_col() +
+  coord_flip() + 
+  facet_wrap(~Genre, scales = 'free')
+  
+```
