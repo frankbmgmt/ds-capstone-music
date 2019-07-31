@@ -19,6 +19,7 @@ library('scales')
 library('wordcloud')
 library('reshape2')
 library('textdata')
+library('ggplot2')
 data("stop_words")
 ```
 # TITLE: Music by the Numbers!
@@ -48,7 +49,8 @@ raw_genre = read_csv("https://foco-ds-portal-files.s3.amazonaws.com/Artists_Genr
 songdata = raw_song %>% 
   left_join(raw_genre, by = c('artist' = 'Band'))
 ```
-There are 4 columns in this dataset
+
+# There are 4 columns in this dataset
 ```{r}
 class(songdata)
 ```
@@ -63,33 +65,62 @@ Count the rows
 ```{r}
 songdata_tibble %>%
 count()
+
+```
+
+
+```{r}
+colnames(songdata_tibble)
+```
+
+# Change "Genre Updated" back to "Genre" as before.
+```{r}
+ songdata_tibble_sm = rename(songdata_tibble, "Genre" = "Genre Updated")
+ 
+  
+```
+
+```{r}
+colnames(songdata_tibble_sm)
+```
+
+#Drop link column - don't need in the analysis...just for reference lated.
+```{r}
+songdata_tibble_sm = select(songdata_tibble_sm, artist, song, text, Genre) 
+  
+  
+```
+
+```{r}
+colnames(songdata_tibble_sm)
+
 ```
 There are 57,650 rows of data in this dataset = each row is a song.
 ```{r}
-songdata_tibble %>%
+songdata_tibble_sm %>%
   select(artist) %>%
   unique()
 ```
 There are 643 artists in this dataset
 If I need 30% for test data = 129 artists.
 ```{r}
-head (songdata_tibble)
+head (songdata_tibble_sm)
 ```
 How many ABBA song?
 ```{r}
-songdata_tibble %>%
+songdata_tibble_sm %>%
   filter (artist == "ABBA") %>%
 count()
 ```
 ```{r}
-songdata_tibble %>%
+songdata_tibble_sm %>%
   filter (artist == "ABBA") %>%
 unnest_tokens(word, text)
 ```
 Search for no. times "girl" is used
 Use tidy text's unnest function to arrange one word per row.
 ```{r}
-songdata_tibble %>%
+songdata_tibble_sm %>%
   filter (artist == "ABBA") %>%
   group_by(song) %>%
 unnest_tokens(word, text) %>%
@@ -102,7 +133,7 @@ I have a lot to learn about text parsing...
 Let's get ride of word such as "the", "a" etc. Called "stop_words"
 It seemed to choke on all rows....doing it for ABBA to see results.
 ```{r}
-songdata_tibble %>%
+songdata_tibble_sm %>%
   filter (artist == "ABBA") %>%  
   unnest_tokens(word, text) %>%
   anti_join(stop_words) %>%
@@ -110,11 +141,9 @@ songdata_tibble %>%
   
 ```
 #FB: All words are used at least twice ABBA's songs catelog . No single word is unique to one song.
+
 ```{r}
-library(ggplot2)
-```
-```{r}
-songdata_tibble %>%
+songdata_tibble_sm %>%
   filter (artist == "ABBA") %>%  
   unnest_tokens(word, text) %>%
   anti_join(stop_words) %>%
@@ -137,12 +166,12 @@ coord_flip()
 set.seed(123)
 training_split = 0.75 #1% data for train, .25% for test
 sampled_fraction = 0.03
-train_dat = songdata_tibble %>% sample_frac(training_split * sampled_fraction)
-test_dat = songdata_tibble %>% anti_join(train_dat, by = 'song')
+train_dat = songdata_tibble_sm %>% sample_frac(training_split * sampled_fraction)
+test_dat = songdata_tibble_sm %>% anti_join(train_dat, by = 'song')
 #train_dat
 # Clean up data to remove ID
-train_dat = train_dat %>% select(-link)
-test_dat = test_dat %>% select(-link)
+#train_dat = train_dat %>% select(-link)
+#test_dat = test_dat %>% select(-link)
 #test_dat
 ```
 # Now scale each set down to 10%
