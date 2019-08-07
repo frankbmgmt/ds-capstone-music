@@ -1,7 +1,7 @@
 ---
 title: "Music Lyric Analysis"
 author: "Frank Bonifazi"
-date: "8/4/2019"
+date: "8/7/2019"
 output: html_document
 ---
 
@@ -11,6 +11,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ## R Markdown
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+#```{r}
+install.packages("DataCombine")
+#```
+
 ```{r}
 library('tidyverse')
 library('tidytext')
@@ -19,7 +24,7 @@ library('scales')
 library('wordcloud')
 library('reshape2')
 library('textdata')
-library('ggplot2')
+library('DataCombine')
 data("stop_words")
 ```
 # TITLE: Music by the Numbers!
@@ -40,9 +45,12 @@ Licensing companies deal with both lyrics and songs as legal assets they manage 
 When another artist wants to record someone else's song, they had to pay license fees to ASCAP for example. ASCAP has a website that deals with this from a financial aspect, but not from a search and select song aspect.  Having this capability would enhance their service offering to their clients, be a competitive differentiator, and potentially increase profits through "premium" services.
 High-Level Summary of Restuls"
 To be written late!!!!
-CHUNK TEMPLATE
-```{r}
-```
+
+Read 57,000 song dataset froma .csv file online
+Read my artist to genre .csv file online
+
+Join them together into one dataframe name "songdata"
+
 ```{r}
 raw_song <- read_csv("https://foco-ds-portal-files.s3.amazonaws.com/songdata.csv")
 raw_genre = read_csv("https://foco-ds-portal-files.s3.amazonaws.com/Artists_Genre_Mapping.csv")
@@ -75,22 +83,14 @@ colnames(songdata_tibble)
 
 # Change "Genre Updated" back to "Genre" as before.
 ```{r}
- songdata_tibble_sm = rename(songdata_tibble, "Genre" = "Genre Updated")
- colnames(songdata_tibble_sm)
-  
-```
-
-
-#Drop link column - don't need in the analysis...just for reference later.
-```{r}
-songdata_tibble_sm = select(songdata_tibble_sm, artist, song, text, Genre) 
-  
-  
+ songdata_tibble_sm = rename(songdata_tibble, "Genre" = "Genre Updated") %>%
+  filter(!is.na(Genre)) %>%
+  select(artist, song, text, Genre) %>%
+  tibble::rowid_to_column("ID")
 ```
 
 ```{r}
 colnames(songdata_tibble_sm)
-
 ```
 There are 57,650 rows of data in this dataset = each row is a song.
 ```{r}
@@ -120,14 +120,16 @@ songdata_tibble_sm %>%
 count()
 ```
 
-#FB: Break up the song lyrics (text) into words for ABBA
+113 ABBA Songs!
+
+Break up the song lyrics (text) into words for ABBA
 ```{r}
 songdata_tibble_sm %>%
   filter (artist == "ABBA") %>%
 unnest_tokens(word, text)
 ```
 
-26,724 words in all the ABBA songs! But, there are repeats and throu-away words "a, i etc." in this list.
+26,724 words in all the ABBA songs! But, there are repeats and throw-away words "a, i etc." in this list.
 
 Search for no. times "girl" is used
 Use tidy text's unnest function to arrange one word per row.
@@ -155,6 +157,7 @@ songdata_tibble_sm %>%
 
 1,917 unique words in all ABBA songs.
 All words are used at least twice ABBA's in this catelog. No single word is unique to one song.
+This shows girl used 68 times!
 
 ```{r}
 songdata_tibble_sm %>%
@@ -181,15 +184,11 @@ I want to use a randon selection since this is an alhpabetical list.
 ```{r}
 
 set.seed(123)
-training_split = 0.75 #1% data for train, .25% for test
-sampled_fraction = 0.03
+training_split = 0.75  #75% data for train, 25% for test
+sampled_fraction = 0.10 #Down size while building analysis
 train_dat = songdata_tibble_sm %>% sample_frac(training_split * sampled_fraction)
 test_dat = songdata_tibble_sm %>% anti_join(train_dat, by = 'song')
-#train_dat
-# Clean up data to remove ID
-#train_dat = train_dat %>% select(-link)
-#test_dat = test_dat %>% select(-link)
-#test_dat
+
 ```
 
 ```{r}
@@ -210,7 +209,7 @@ train_dat_unnest = train_dat %>%
   mutate(word = reorder(word,n)) %>%
   filter(n > 1)
 train_dat_unnest %>%
-  filter(n > 2) %>%
+  filter(n > 5) %>%
   ggplot(aes(word, n)) +
   geom_col() +
   xlab("Words in Dolly Parton's songs") +
@@ -239,11 +238,8 @@ train_dat_unnest = train_dat %>%
   unnest_tokens(word, text) %>%
   anti_join(stop_words)
   head(train_dat_unnest)
-  # Add sentiments
-  
-  
-```
 
+```
 
 ```{r}
 sent_dat = train_dat_unnest %>%
@@ -253,6 +249,7 @@ sent_dat = train_dat_unnest %>%
  
 
 ```
+Many NAs... this will rain havock on my analysis!
 
 I need to add words to the afinn list.
 - baby, call, music, row, hold, em, songs, dolly, hear, life, night, parton, time, walk, watched, wrote, abraham, anymore, believes, birmingham, boulder, change, comin, color, day, door, eternity, feel, fits, goin, gonna, guitar, half, hummin, nashville, ol, rca, rock, saving, soul, standing, strummin, till, torch, wait, wash, world = 0
@@ -267,53 +264,127 @@ I need to add words to the afinn list.
 - fire = -2????? "Come on light my fire" is good. "I'm going to fire you" is bad...
 
 
-TEMPORARILY Remove rows with no Genre in sent_dat
+TEMPORARILY Convert rows with no Genre in sent_dat to 0
 ```{r}
 sent_dat_noNAs = sent_dat %>%
-  
   group_by(Genre, sentiment) %>%
-  filter(!is.na(Genre)) %>%
-  filter(!is.na(sentiment))
-  sent_dat_noNAs
+  filter(!is.na(Genre))
 
+sent_dat_noNAs$sentiment[is.na(sent_dat_noNAs$sentiment)] = 0
+  
+sent_dat_noNAs
 ```
 
 Find the sum of sentiment for each Genre
+Change Genre NAs to zeros
+
 ```{r}
 sent_dat_noNAs %>%
+  filter(sentiment != 0) %>%
    group_by(Genre) %>%
-  filter(Genre == "Pop") %>%
-  select(sentiment)
-   sum()
+ 
+  select(sentiment) %>%
+  ggplot(aes(x = sentiment)) + 
+  geom_histogram(bins = 10) + 
+  facet_wrap(~Genre, scales = 'free')
+  
+   
 
 ```
 
-
+Note: the "holes" at 0!
 
 ```{r}
-train_dat %>%
-  group_by(Genre, artist) %>%
-  filter(!is.na(Genre)) %>%
-  count(artist, sort = TRUE) %>%
-  
-  ggplot(aes(x = artist, y = n)) +
-  geom_col() +
-  coord_flip() + 
-  facet_wrap(~Genre, scales = 'free')
+sent_dat_noNAs %>%
+  filter(sentiment != 0) %>%
+   group_by(Genre) %>%
+  summarize(mean_sentiment = mean(sentiment)) %>%
+  ggplot(aes(x = Genre, y = mean_sentiment)) + 
+  geom_col() + 
+  coord_flip()
 ```
-Need to make this more readable.  I'll try fewwer artists 1st...
+Most Genres have a positive sentiment mean but:
+- Rap, Hip-Hop, Electronica, DJBeats, Dance, Comedy, and Americana are negative.
+Rock and Country are slightly negative (essentiall neutral)
+
+I need to add words to the affin table to enrich it's vocabulary for these song.
+
 
 ```{r}
-train_dat %>%
-  group_by(Genre, artist) %>%
-  filter(!is.na(Genre)) %>%
-  filter(artist == "ABBA") %>%
-  count(artist, sort = TRUE) %>%
-  
-  ggplot(aes(x = artist, y = n)) +
-  geom_col() +
-  coord_flip() + 
-  facet_wrap(~Genre, scales = 'free')
+afinn_row = c("frankieb", 0)
+head(afinn_row)
+```
+
+
+Make a dataframe with these words = 0
+
+baby, call, music, row, hold, em, songs, dolly, hear, life, night, parton, time, walk, watched, wrote, abraham, anymore, believes, birmingham, boulder, change, comin, color, day, door, eternity, feel, fits, goin, gonna, guitar, half, hummin, nashville, ol, rca, rock, saving, soul, standing, strummin, till, torch, wait, wash, world
+
+Make a row with all the words to insert into afinn later
+```{r}
+afinn_add_data = c("baby", "call", "music", "row", "hold", "em", "songs", "dolly", "hear", "life", "night", "parton", "time", "walk", "watched", "wrote", "abraham", "anymore", "believes", "birmingham", "boulder", "change", "comin", "color", "day", "door", "eternity", "feel", "fits", "goin", "gonna", "guitar", "half", "hummin", "nashville", "ol", "rca", "rock", "saving", "soul", "standing", "strummin", "till", "torch", "wait", "wash", "world")
+                   
+afinn_add_data
+
+```
+Add words and values into my var afinnPlus for neutral sentiment words
+```{r}
+afinnPlus = afinn
+
+for(i in 1:47) {
+  afinn_row = c(afinn_add_data[i], 0)
+afinn_row
+
+ afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+ }
+afinnPlus
+```
+
+Now add new words to afinn with non-zero values
+blue, blues = -2
+- heaven's = 3
+- heart, star = 2
+- burn  = 0 (could burn good or bad for you baby!
+- burning = 3
+- smart = 2
+- bosom, honey, touch = 2
+
+```{r}
+afinn_row = c("blue", -2)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+afinn_row = c("blues", -2)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+head(afinnPlus)
+
+afinn_row = c("heaven's", 3)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+finn_row = c("heart", 2)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+afinn_row = c("star", 2)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+afinn_row = c("burn", 0)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+afinn_row = c("burning", 3)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+afinn_row = c("smart", 2)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+afinn_row = c("bosom", 2)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+afinn_row = c("honey", 2)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+afinn_row = c("touch", 2)
+afinnPlus = InsertRow(afinnPlus, NewRow = afinn_row, RowNum=1)
+
+head(afinnPlus)
 ```
 
 
