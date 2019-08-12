@@ -220,7 +220,7 @@ train_dat_unnest
 23 words are used 600 or more times.
 Make engineered vars of these words.
 
-First load them into a vector???
+Trouble doing it elegantly...first do it manually for these 23!  I left out "chorus" because that's most likely from notating the change from the verses.
 
 
 ```{r}
@@ -228,7 +228,27 @@ train_dat_top_words_num = train_dat %>%
   left_join(sent_per_song, by = 'ID') %>%
   mutate(wrd_love = str_detect(text, 'love'),
          wrd_baby = str_detect(text, 'baby'),
-         wrd_time = str_detect(text, 'time'))
+         wrd_time = str_detect(text, 'time'),
+wrd_yeah = str_detect(text, 'yeah'),        
+wrd_life = str_detect(text, 'life'),
+wrd_gonna = str_detect(text, 'gpnna'),
+wrd_heart = str_detect(text, 'heart'),
+wrd_day = str_detect(text, 'day'),
+wrd_night = str_detect(text, 'night'), 
+wrd_feel = str_detect(text, 'feel'),
+wrd_girl = str_detect(text, 'girl'), 
+wrd_wprld = str_detect(text, 'world'),
+wrd_home = str_detect(text, 'home'),
+wrd_hey = str_detect(text, 'hey'), 
+wrd_eyes = str_detect(text, 'eyes'), 
+wrd_hear = str_detect(text, 'hear'), 
+wrd_la = str_detect(text, 'la'),
+wrd_mind = str_detect(text, 'mind'), 
+wrd_wanna = str_detect(text, 'wanna'), 
+wrd_leave = str_detect(text, 'leave'),
+wrd_gotta = str_detect(text, 'gotta'),
+wrd_tonight = str_detect(text, 'tonight'), 
+)
 
   head(train_dat_top_words_num)
 ```
@@ -243,13 +263,28 @@ for(i in 1:23) {
  key_word = train_dat_unnest [i,1]
  
   col_text = paste('wrd_', word, sep="")
-  mutate(col_text = str_detect(text, word))
+  mutate(col_text = str_detect(text, key_word))
 }
 
 final_training_df
 
 ```
+I can't figure out why final_training_df = NULL!!!!!
 
+Let's try to find unique or close to unique words, in each Genre.
+
+```{r}
+  train_dat_unnest = train_dat %>%
+  group_by(Genre) %>%
+ 
+
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE) #%>%
+  #mutate(word = reorder(word,n)) #%>%
+  #filter(n > 600)
+  
+```
 
 
 ```{r}
